@@ -15,6 +15,10 @@
 #include <linux/types.h>
 #include <linux/videodev2.h>
 
+#ifndef V4L2_CTRL_FLAG_NEXT_CTRL
+# define V4L2_CTRL_FLAG_NEXT_CTRL 0x80000000
+#endif
+
 #define cc0(arg) ((unsigned int) (unsigned char) (arg))
 #define cc1(arg) ((unsigned int) (unsigned char) ((unsigned int) (arg) >> 8))
 #define cc2(arg) ((unsigned int) (unsigned char) ((unsigned int) (arg) >> 16))
@@ -779,14 +783,9 @@ main(void)
 	struct v4l2_queryctrl *const p_v4l2_queryctrl =
 		page_end - sizeof(*p_v4l2_queryctrl);
 	ioctl(-1, VIDIOC_QUERYCTRL, p_v4l2_queryctrl);
-#ifdef V4L2_CTRL_FLAG_NEXT_CTRL
 	printf("ioctl(-1, VIDIOC_QUERYCTRL, {id=V4L2_CTRL_FLAG_NEXT_CTRL"
 	       "|%#x /* V4L2_CID_??? */}) = -1 EBADF (%m)\n",
 	       p_v4l2_queryctrl->id & ~V4L2_CTRL_FLAG_NEXT_CTRL);
-#else
-	printf("ioctl(-1, VIDIOC_QUERYCTRL, {id=%#x /* V4L2_CID_??? */})"
-	       " = -1 EBADF (%m)\n", p_v4l2_queryctrl->id);
-#endif
 
 	TAIL_ALLOC_OBJECT_CONST_PTR(struct v4l2_queryctrl, p_queryctrl);
 	p_queryctrl->id = V4L2_CID_SATURATION;
