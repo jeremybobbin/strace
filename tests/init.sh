@@ -209,6 +209,8 @@ match_grep()
 	check_prog wc
 	check_prog grep
 
+	[ -r "$patterns" ] || fail_ "Can't read patterns from \"$patterns\""
+
 	cnt=1
 	while read -r pattern; do
 		LC_ALL=C grep -E -x -e "$pattern" < "$output" > /dev/null || {
