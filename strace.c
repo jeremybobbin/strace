@@ -67,6 +67,19 @@ bool stack_trace_enabled;
 const unsigned int syscall_trap_sig = SIGTRAP | 0x80;
 
 cflag_t cflag = CFLAG_NONE;
+enum followfork_opts {
+	FOLLOWFORK_NONE,
+	FOLLOWFORK_SIMPLE,
+	FOLLOWFORK_APPEND_PID,
+
+	NUM_FOLLOWFORK_OPTS
+};
+static struct xlat_data followfork_str[] = {
+	{ FOLLOWFORK_SIMPLE,		"simple" },
+	{ FOLLOWFORK_SIMPLE,		"out-file:simple" },
+	{ FOLLOWFORK_APPEND_PID,	"append-pid" },
+	{ FOLLOWFORK_APPEND_PID,	"out-file:append-pid" },
+};
 unsigned int followfork;
 unsigned int ptrace_setoptions = PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEEXEC
 				 | PTRACE_O_TRACEEXIT;
@@ -292,8 +305,10 @@ Tracing:\n\
                  run tracer process in a separate process group\n\
   -DDD, --daemonize=session\n\
                  run tracer process in a separate session\n\
-  -f             follow forks\n\
-  -ff            follow forks with output into separate files\n\
+  -f, --follow-forks[=out-file:simple]\n\
+                 follow forks\n\
+  -ff, --follow-forks=out-file:append-pid\n\
+                 follow forks with output into separate files\n\
   -I INTERRUPTIBLE, --interruptible=INTERRUPTIBLE\n\
      1, anywhere:   no signals are blocked\n\
      2, waiting:    fatal signals are blocked while decoding syscall (default)\n\
@@ -1742,6 +1757,7 @@ init(int argc, char *argv[])
 	int daemonized_tracer_long = DAEMONIZE_NONE;
 	int xflag_long = HEXSTR_NONE;
 	int qflag_short = 0;
+	int followfork_long = FOLLOWFORK_NONE;
 
 	if (!program_invocation_name || !*program_invocation_name) {
 		static char name[] = "strace";
@@ -1773,6 +1789,7 @@ init(int argc, char *argv[])
 		GETOPT_SECCOMP = 0x100,
 		GETOPT_DAEMONIZE,
 		GETOPT_HEX_STR,
+		GETOPT_FOLLOWFORKS,
 
 		GETOPT_QUAL_TRACE,
 		GETOPT_QUAL_ABBREV,
@@ -1798,6 +1815,7 @@ init(int argc, char *argv[])
 		{ "daemonised",		optional_argument, 0, GETOPT_DAEMONIZE },
 		{ "daemonized",		optional_argument, 0, GETOPT_DAEMONIZE },
 		{ "env",		required_argument, 0, 'E' },
+		{ "follow-forks",	optional_argument, 0, GETOPT_FOLLOWFORKS },
 		{ "help",		no_argument,	   0, 'h' },
 		{ "instruction-pointer", no_argument,      0, 'i' },
 		{ "interruptible",	required_argument, 0, 'I' },
@@ -1900,6 +1918,13 @@ init(int argc, char *argv[])
 			break;
 		case 'f':
 			followfork++;
+			break;
+		case GETOPT_FOLLOWFORKS:
+			followfork_long = find_arg_val(optarg, followfork_str,
+						       FOLLOWFORK_SIMPLE,
+						       FOLLOWFORK_NONE);
+			if (followfork_long <= FOLLOWFORK_NONE)
+				error_opt_arg(c, lopt, optarg);
 			break;
 		case 'F':
 			optF = 1;
@@ -2099,6 +2124,15 @@ init(int argc, char *argv[])
 		seccomp_filtering = false;
 	}
 
+	if (followfork_long) {
+		if (followfork) {
+			error_msg_and_die("-f and --follow-forks cannot"
+					  " be provided simultaneously");
+		} else {
+			followfork = followfork_long;
+		}
+	}
+
 	if (seccomp_filtering) {
 		if (nprocs && (!argc || debug_flag))
 			error_msg("--seccomp-bpf is not enabled for processes"
@@ -2114,13 +2148,14 @@ init(int argc, char *argv[])
 			error_msg("deprecated option -F ignored");
 		} else {
 			error_msg("option -F is deprecated, "
-				  "please use -f instead");
+				  "please use -f/--follow-forks instead");
 			followfork = optF;
 		}
 	}
 
 	if (followfork >= 2 && cflag) {
-		error_msg_and_help("(-c/--summary-only or -C/--summary) and -ff"
+		error_msg_and_help("(-c/--summary-only or -C/--summary) and"
+				   " -ff/--follow-forks=out-file:append-pid"
 				   " are mutually exclusive");
 	}
 
@@ -2225,7 +2260,9 @@ init(int argc, char *argv[])
 			 * when using popen, so prohibit it.
 			 */
 			if (followfork >= 2)
-				error_msg_and_help("piping the output and -ff "
+				error_msg_and_help("piping the output and "
+						   "-ff/--follow-forks="
+						   "out-file:append-pid "
 						   "are mutually exclusive");
 			shared_log = strace_popen(outfname + 1);
 		} else if (followfork < 2) {
