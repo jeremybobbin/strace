@@ -372,6 +372,8 @@ Output format:\n\
                  suppress messages about attaching, detaching, etc.\n\
   -qq, --quiet=attach,personality,exit\n\
                  suppress messages about process exit status as well.\n\
+  -qqq, --quiet=all\n\
+                 suppress all suppressible messages.\n\
   -r, --relative-timestamps[=PRECISION]\n\
                  print relative timestamp\n\
      precision:  one of s, ms, us, ns; default is microseconds\n\
@@ -1752,6 +1754,7 @@ init(int argc, char *argv[])
 {
 	static const char *qflag_qual = "attach,personality";
 	static const char *qqflag_qual = "attach,personality,exit";
+	static const char *qqqflag_qual = "all";
 	static const char *yflag_qual = "path";
 	static const char *yyflag_qual = "path,socket,dev";
 
@@ -2327,7 +2330,8 @@ init(int argc, char *argv[])
 					  " be provided simultaneously");
 		}
 
-		qualify_quiet(qflag_short == 1 ? qflag_qual : qqflag_qual);
+		qualify_quiet(qflag_short == 1 ? qflag_qual :
+			      qflag_short == 2 ? qqflag_qual : qqqflag_qual);
 	}
 
 	/*
