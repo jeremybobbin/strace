@@ -514,11 +514,19 @@ static FILE *
 strace_fopen(const char *path)
 {
 	FILE *fp;
+	int fd, oflags;
+	oflags = O_RSYNC | O_SYNC | O_CREAT | O_WRONLY;
+	oflags |= open_append ? O_APPEND : O_TRUNC;
 
 	swap_uid();
-	fp = fopen_stream(path, open_append ? "a" : "w");
+
+	if ((fd = open(path, oflags, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)) == -1)
+		perror_msg_and_die("Can't open '%s'", path);
+
+	fp = fdopen(fd, open_append ? "a" : "w");
 	if (!fp)
 		perror_msg_and_die("Can't fopen '%s'", path);
+
 	swap_uid();
 	set_cloexec_flag(fileno(fp));
 	return fp;
